@@ -1,8 +1,8 @@
 {
-  "name": "sprint-14-homework",
+  "name": "sprint-15-homework",
   "version": "1.0.2",
   "homepage": "https://github.com/qwelp/sprint-14-homework",
-  "description": "Проектная работа 14",
+  "description": "Проектная работа 15",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
