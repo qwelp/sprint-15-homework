@@ -2,31 +2,46 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 require('dotenv').config();
+// eslint-disable-next-line no-unused-vars
+const NotFoundError = require('../middlewares/errors/not-found-err');
+// eslint-disable-next-line no-unused-vars
+const ServerError = require('../middlewares/errors/server-err');
+// eslint-disable-next-line no-unused-vars
+const ErrorOnTheClientSide = require('../middlewares/errors/on-the-client-side-err');
+// eslint-disable-next-line no-unused-vars
+const NotRights = require('../middlewares/errors/not-rights');
+// eslint-disable-next-line no-unused-vars
+const Conflict409 = require('../middlewares/errors/conflict-409');
 
 const { JWT_SECRET } = process.env;
 
 // GET Получить пользователя по id
-module.exports.getUser = (req, res) => {
-  const { userId } = req.params;
-
-  User.findById(userId, (err, user) => {
+module.exports.getUser = (req, res, next) => User
+  .findOne({ _id: req.params.userId })
+  .then((user) => {
     if (!user) {
-      res.status(404).send({ data: 'Пользователь не существует' });
-    } else {
-      res.status(200).send({ data: user });
+      throw new NotFoundError('Нет пользователя с таким id');
     }
-  });
-};
+
+    res.send(user);
+  })
+  .catch(next);
 
 // GET Получить всех пользователей
-module.exports.getUsers = (req, res) => {
+module.exports.getUsers = (req, res, next) => {
   User.find({})
-    .then((user) => res.send({ data: user }))
-    .catch((err) => res.status(500).send({ message: err.message }));
+    .then((user) => {
+      if (!user) {
+        throw new ServerError('Сервер не может получить список пользователей');
+      }
+
+      res.send({ data: user });
+    })
+    .catch(next);
 };
 
 // POST Добавить пользователя
-module.exports.createUser = (req, res) => {
+module.exports.createUser = (req, res, next) => {
   const {
     name: namePost,
     about: aboutPost,
@@ -36,8 +51,8 @@ module.exports.createUser = (req, res) => {
   } = req.body;
   const passwordArray = password.split('').every((sym) => sym === ' ');
 
-  if (password === ' ' || passwordArray || password.length < 9) {
-    res.status(400).send({ message: 'Пароль не может быть пустым и быть меньше 8 символов!' });
+  if (password === ' ' || passwordArray) {
+    next(new ErrorOnTheClientSide('Пароль не может быть пустым'));
   } else {
     bcrypt.hash(password, 10)
       .then((hash) => User.create({
@@ -52,9 +67,9 @@ module.exports.createUser = (req, res) => {
       })
       .catch((err) => {
         if (err.name === 'MongoError' && err.code === 11000) {
-          res.status(409).send({ message: err.message });
+          next(new Conflict409('Conflict409'));
         } else {
-          res.status(400).send({ message: err.message });
+          next(new ErrorOnTheClientSide(err.message));
         }
       });
   }
@@ -78,59 +93,66 @@ module.exports.login = (req, res) => {
 };
 
 // PATCH обновляет профиль
-module.exports.updateUser = (req, res) => {
+module.exports.updateUser = (req, res, next) => {
   const {
     name: namePatch,
     about: aboutPatch
   } = req.body;
   const owner = req.user._id;
 
-  User.findById(owner, (err, userValid) => {
-    if (!userValid) {
-      res.status(400).send({ data: 'Пользователя не существует' });
-    } else if (String(userValid._id) === req.user._id) {
-      User.updateOne({ _id: owner }, { name: namePatch, about: aboutPatch },
-        { runValidators: true })
-        .then(() => {
-          User.findById(owner, (errUpdate, userUpdate) => {
-            if (!userUpdate) {
-              res.status(404).send({ data: 'Пользователь не существует' });
-            } else {
-              res.send({ data: userUpdate });
-            }
-          });
-        })
-        .catch((error) => res.status(400).send({ message: error.message }));
-    } else {
-      res.status(403).send({ data: 'Можно редактировать, только свою карточку' });
-    }
-  });
+  User
+    .findOne({ _id: owner })
+    .then((user) => {
+      if (!user) {
+        throw new ErrorOnTheClientSide('Нет пользователя с таким id');
+      } else if (String(user._id) === owner) {
+        User.updateOne({ _id: owner }, { name: namePatch, about: aboutPatch },
+          { runValidators: true })
+          .then(() => {
+            User.findById(owner, (errUpdate, userUpdate) => {
+              if (!userUpdate) {
+                throw new NotFoundError('Пользователь не существует');
+              } else {
+                res.send({ data: userUpdate });
+              }
+            });
+          })
+          .catch(next);
+      } else {
+        throw new NotRights('Можно редактировать, только свою карточку');
+      }
+    })
+    .catch(next);
 };
 
 // PATCH обновляет аватар
-module.exports.updateAvatarUser = (req, res) => {
+module.exports.updateAvatarUser = (req, res, next) => {
   const {
     avatar: avatarPost
   } = req.body;
   const owner = req.user._id;
 
-  User.findById(owner, (err, userValid) => {
-    if (!userValid) {
-      res.status(400).send({ data: 'Пользователя не существует' });
-    } else if (String(userValid._id) === req.user._id) {
-      User.updateOne({ _id: owner }, { $set: { avatar: avatarPost } }, { runValidators: true })
-        .then(() => {
-          User.findById(owner, (errUpdate, userUpdate) => {
-            if (!userUpdate) {
-              res.status(404).send({ data: 'Пользователь не существует' });
-            } else {
-              res.send({ data: userUpdate.avatar });
-            }
-          });
-        })
-        .catch((error) => res.status(400).send({ message: error.message }));
-    } else {
-      res.status(403).send({ data: 'Можно редактировать, только свой аватар' });
-    }
-  });
+  User
+    .findOne({ _id: owner })
+    .then((user) => {
+      if (!user) {
+        throw new ErrorOnTheClientSide('Нет пользователя с таким id');
+      } else if (String(user._id) === owner) {
+        User.updateOne({ _id: owner }, { avatar: avatarPost },
+          { runValidators: true })
+          .then(() => {
+            User.findById(owner, (errUpdate, userUpdate) => {
+              if (!userUpdate) {
+                throw new NotFoundError('Пользователь не существует');
+              } else {
+                res.send({ data: userUpdate.avatar });
+              }
+            });
+          })
+          .catch(next);
+      } else {
+        throw new NotRights('Можно редактировать, только свою карточку');
+      }
+    })
+    .catch(next);
 };
