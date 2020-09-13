@@ -11,7 +11,11 @@ const {
 } = require('../controllers/users');
 
 usersRouter.get('/', getUsers);
-usersRouter.get('/:userId', getUser);
+usersRouter.get('/:userId', celebrate({
+  body: Joi.object().keys({
+    _id: Joi.string().hex()
+  })
+}), getUser);
 
 usersRouter.patch('/me', celebrate({
   body: Joi.object().keys({
@@ -22,7 +26,7 @@ usersRouter.patch('/me', celebrate({
 
 usersRouter.patch('/me/avatar', celebrate({
   body: Joi.object().keys({
-    avatar: Joi.string().required().uri()
+    avatar: Joi.string().required().pattern(/((http|https):\/\/)?(www.)?([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|[a-z0-9-]+\.[a-z]+[a-z]+?)(:[0-9]{2,5})?([a-z/]+)?#?/)
   })
 }), updateAvatarUser);
 

@@ -7,6 +7,8 @@ const { celebrate, Joi } = require('celebrate');
 const { errors } = require('celebrate');
 // eslint-disable-next-line no-unused-vars
 const { requestLogger, errorLogger } = require('./middlewares/logger');
+// eslint-disable-next-line no-unused-vars
+const NotFoundError = require('./middlewares/errors/not-found-err');
 require('dotenv').config();
 const {
   usersRouter,
@@ -14,8 +16,8 @@ const {
   createUser
 } = require('./routes/users.js');
 const cardsRouter = require('./routes/cards.js');
-
-const { PORT = 3000 } = process.env;
+// eslint-disable-next-line no-unused-vars
+const { PORT = 3000, JWT_SECRET = '5c83b16ed44f5ceaf36bb33e9a13b3d0' } = process.env;
 
 const app = express();
 
@@ -65,9 +67,7 @@ app.post('/signup', celebrate({
 app.use('/users', auth, usersRouter);
 app.use('/cards', auth, cardsRouter);
 
-app.use('/', (req, res) => {
-  res.status(404).send({ message: 'Запрашиваемый ресурс не найден' });
-});
+app.use('/', () => new NotFoundError('Запрашиваемый ресурс не найден!'));
 
 app.use(errorLogger);
 app.use(errors());

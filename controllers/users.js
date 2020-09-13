@@ -12,8 +12,8 @@ const ErrorOnTheClientSide = require('../middlewares/errors/on-the-client-side-e
 const NotRights = require('../middlewares/errors/not-rights');
 // eslint-disable-next-line no-unused-vars
 const Conflict409 = require('../middlewares/errors/conflict-409');
-
-const { JWT_SECRET } = process.env;
+// eslint-disable-next-line no-unused-vars
+const { JWT_SECRET = '5c83b16ed44f5ceaf36bb33e9a13b3d0' } = process.env;
 
 // GET Получить пользователя по id
 module.exports.getUser = (req, res, next) => User

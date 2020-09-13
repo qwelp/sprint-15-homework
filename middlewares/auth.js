@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
-
-const { JWT_SECRET } = process.env;
+// eslint-disable-next-line no-unused-vars
+const { JWT_SECRET = '5c83b16ed44f5ceaf36bb33e9a13b3d0' } = process.env;
 
 function handleAuthError(res) {
   return res
